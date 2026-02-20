@@ -1,0 +1,162 @@
+#include "Ui.h"
+
+#include <Arduino.h>
+#include <cstring>
+
+bool Ui::begin() {
+  Wire.begin(21, 22);
+  Wire.setClock(100000);
+
+  displayOk_ = display_.begin(SSD1306_SWITCHCAPVCC, ADDRESS);
+  if (!displayOk_) {
+    Serial.println(F("OLED non trovato"));
+    return false;
+  }
+
+  display_.clearDisplay();
+  display_.setTextSize(1);
+  display_.setTextColor(SSD1306_WHITE);
+  display_.setTextWrap(false);
+  display_.display();
+  dirty_ = true;
+  return true;
+}
+
+void Ui::markDirty() { dirty_ = true; }
+
+void Ui::refreshMain(uint16_t charDelayMs, uint16_t pauseMs, bool editChar, const char *text) {
+  if (!displayOk_ || !dirty_) return;
+
+  display_.clearDisplay();
+  display_.setCursor(0, 0);
+  display_.print("CHAR: ");
+  display_.print(charDelayMs);
+  display_.print(" ms");
+
+  display_.setCursor(0, 10);
+  display_.print("PAUSA: ");
+  display_.print(pauseMs);
+  display_.print(" ms");
+
+  display_.setCursor(0, 20);
+  display_.print("EDIT: ");
+  display_.print(editChar ? "CHAR" : "PAUSA");
+
+  char view[22];
+  if (strlen(text) <= 18) {
+    strncpy(view, text, sizeof(view) - 1);
+    view[sizeof(view) - 1] = '\0';
+  } else {
+    strncpy(view, text, 17);
+    view[17] = '\0';
+    strcat(view, "...");
+  }
+
+  display_.setCursor(0, 32);
+  display_.print("TXT: ");
+  display_.print(view);
+
+  display_.setCursor(0, 52);
+  display_.print("1x:toggle 2x:editor");
+  display_.display();
+  dirty_ = false;
+}
+
+void Ui::refreshEditor(const char *buffer, uint8_t pos, uint8_t selection, const char *charSet,
+                       uint8_t charCount, uint8_t specialBack, uint8_t specialOk) {
+  if (!displayOk_ || !dirty_) return;
+
+  display_.clearDisplay();
+  display_.setCursor(0, 0);
+  display_.print("Editor stringa");
+
+  const int16_t start = pos > 14 ? pos - 14 : 0;
+  char view[22];
+  uint8_t v = 0;
+  if (start > 0) view[v++] = '.';
+
+  for (uint8_t i = start; i < MAX_TEXT_LEN && buffer[i] != '\0' && v < 20; i++) {
+    view[v++] = buffer[i];
+  }
+  view[v] = '\0';
+
+  display_.setCursor(0, 14);
+  display_.print(view);
+
+  display_.setCursor(0, 24);
+  display_.print("Pos:");
+  display_.print(pos);
+  display_.print('/');
+  display_.print(MAX_TEXT_LEN);
+
+  display_.setCursor(0, 38);
+  display_.print("Sel: ");
+  if (selection < charCount) {
+    display_.print('\'');
+    display_.print(charSet[selection]);
+    display_.print('\'');
+  } else if (selection == specialBack) {
+    display_.print("BACK");
+  } else if (selection == specialOk) {
+    display_.print("OK/FINE");
+  } else {
+    display_.print("CANCEL");
+  }
+
+  display_.setCursor(0, 52);
+  display_.print("Click=ok 2s=salva");
+  display_.display();
+  dirty_ = false;
+}
+
+void Ui::refreshPassword(uint8_t pwdPos, uint8_t currentDigit) {
+  if (!displayOk_ || !dirty_) return;
+
+  display_.clearDisplay();
+  display_.setCursor(0, 0);
+  display_.print("MENU SEGRETO");
+  display_.setCursor(0, 12);
+  display_.print("Password (4 cifre)");
+
+  display_.setCursor(0, 28);
+  display_.print("Inserite: ");
+  for (uint8_t i = 0; i < 4; i++) {
+    display_.print(i < pwdPos ? '*' : '_');
+    display_.print(' ');
+  }
+
+  display_.setCursor(0, 44);
+  display_.print("Cifra corrente: ");
+  display_.print(currentDigit);
+  display_.display();
+  dirty_ = false;
+}
+
+void Ui::refreshSecretMenu(const char *const *items, uint8_t count, uint8_t selected) {
+  if (!displayOk_ || !dirty_) return;
+
+  display_.clearDisplay();
+  display_.setCursor(0, 0);
+  display_.print("Menu segreto");
+
+  for (uint8_t i = 0; i < count; i++) {
+    display_.setCursor(0, 14 + i * 12);
+    display_.print(i == selected ? "> " : "  ");
+    display_.print(items[i]);
+  }
+
+  display_.display();
+  dirty_ = false;
+}
+
+void Ui::refreshMessage(const char *line1, const char *line2) {
+  if (!displayOk_ || !dirty_) return;
+
+  display_.clearDisplay();
+  display_.setCursor(0, 18);
+  display_.print(line1);
+  display_.setCursor(0, 32);
+  display_.print(line2);
+  display_.display();
+  dirty_ = false;
+}
