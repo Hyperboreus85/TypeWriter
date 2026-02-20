@@ -7,7 +7,7 @@ bool Ui::begin() {
   Wire.begin(21, 22);
   Wire.setClock(100000);
 
-  displayOk_ = display_.begin(SSD1306_SWITCHCAPVCC, ADDRESS);
+  displayOk_ = display_.begin(ADDRESS, true);
   if (!displayOk_) {
     Serial.println(F("OLED non trovato"));
     return false;
@@ -15,7 +15,7 @@ bool Ui::begin() {
 
   display_.clearDisplay();
   display_.setTextSize(1);
-  display_.setTextColor(SSD1306_WHITE);
+  display_.setTextColor(SH110X_WHITE);
   display_.setTextWrap(false);
   display_.display();
   dirty_ = true;

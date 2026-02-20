@@ -1,6 +1,8 @@
 #pragma once
 
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SH110X.h>
+#include <Wire.h>
 
 class Ui {
 public:
@@ -18,9 +20,9 @@ public:
 private:
   static constexpr uint8_t WIDTH = 128;
   static constexpr uint8_t HEIGHT = 64;
-  static constexpr uint8_t ADDRESS = 0x3C;
+  static constexpr uint8_t ADDRESS = 0x3C; // alcuni moduli SH1106 usano 0x3D
 
-  Adafruit_SSD1306 display_{WIDTH, HEIGHT, &Wire, -1};
+  Adafruit_SH1106G display_{WIDTH, HEIGHT, &Wire, -1};
   bool displayOk_ = false;
   bool dirty_ = true;
 };
