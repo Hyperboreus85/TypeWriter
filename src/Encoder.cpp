@@ -10,6 +10,8 @@ void Encoder::begin(uint8_t pinA, uint8_t pinB) {
   pinMode(pinB_, INPUT_PULLUP);
 
   prevState_ = (digitalRead(pinA_) << 1) | digitalRead(pinB_);
+  lastTickMs_ = millis();
+  speedStep_ = 1;
   instance_ = this;
   attachInterrupt(digitalPinToInterrupt(pinA_), isrRouter, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinB_), isrRouter, CHANGE);
@@ -34,7 +36,27 @@ void IRAM_ATTR Encoder::handleIsr() {
       0, 1, -1, 0,
   };
 
-  ticks_ += table[index];
+  const int8_t tickDelta = table[index];
+  ticks_ += tickDelta;
+
+  if (tickDelta != 0) {
+    const unsigned long now = millis();
+    const unsigned long dt = now - lastTickMs_;
+    lastTickMs_ = now;
+
+    if (dt < 35) {
+      speedStep_ = 5;
+    } else if (dt < 60) {
+      speedStep_ = 4;
+    } else if (dt < 100) {
+      speedStep_ = 3;
+    } else if (dt < 160) {
+      speedStep_ = 2;
+    } else {
+      speedStep_ = 1;
+    }
+  }
+
   prevState_ = current;
 }
 
@@ -49,4 +71,15 @@ int16_t Encoder::consumeDetents() {
   const int16_t detents = total / 4;
   remainder_ = total % 4;
   return detents;
+}
+
+uint8_t Encoder::consumeSpeedStep() {
+  uint8_t speed;
+  noInterrupts();
+  speed = speedStep_;
+  interrupts();
+
+  if (speed < 1) return 1;
+  if (speed > 5) return 5;
+  return speed;
 }

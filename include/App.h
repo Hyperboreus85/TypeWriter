@@ -29,7 +29,9 @@ private:
   static constexpr uint16_t MAX_CHAR_DELAY_MS = 1000;
   static constexpr uint16_t MIN_LINE_PAUSE_MS = 0;
   static constexpr uint16_t MAX_LINE_PAUSE_MS = 30000;
-  static constexpr uint8_t MAX_TEXT_LEN = 64;
+  static constexpr uint16_t MAX_TEXT_LEN = 512;
+
+  static constexpr unsigned long DISPLAY_SLEEP_TIMEOUT_MS = 60000;
 
   static constexpr uint8_t PASSWORD_LEN = 4;
   static constexpr uint8_t DEFAULT_PASSWORD[PASSWORD_LEN] = {1, 2, 3, 4};
@@ -53,7 +55,7 @@ private:
   ScreenState screen_ = ScreenState::MAIN;
 
   char editorBuffer_[MAX_TEXT_LEN + 1] = "";
-  uint8_t editorPos_ = 0;
+  uint16_t editorPos_ = 0;
   uint8_t editorSelection_ = 0;
 
   uint8_t pwdInput_[PASSWORD_LEN] = {0, 0, 0, 0};
@@ -74,12 +76,14 @@ private:
   uint16_t appliedCharDelayMs_ = DEFAULT_CHAR_DELAY_MS;
   uint16_t appliedLinePauseMs_ = DEFAULT_LINE_PAUSE_MS;
   char appliedText_[MAX_TEXT_LEN + 1] = "";
+  unsigned long lastInteractionMs_ = 0;
 
   void disableWireless();
-  void handleEncoder(int16_t detents);
+  void handleEncoder(int16_t detents, uint8_t speedStep);
   void handleButton(const ButtonEvents &events);
   void handleMessageTimeout();
   void refreshUi();
+  void handleDisplayPower(bool userInteraction, bool encoderMoved);
 
   void beginMain();
   void beginEditor(bool preload);

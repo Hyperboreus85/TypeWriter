@@ -10,12 +10,12 @@ public:
   void update();
 
 private:
-  static constexpr uint8_t MAX_TEXT_LEN = 64;
+  static constexpr uint16_t MAX_TEXT_LEN = 512;
 
   char text_[MAX_TEXT_LEN + 1] = "";
   uint16_t charDelayMs_ = 50;
   uint16_t linePauseMs_ = 2000;
-  uint8_t printIndex_ = 0;
+  uint16_t printIndex_ = 0;
   bool waitingLinePause_ = false;
   unsigned long lastEventMs_ = 0;
 };

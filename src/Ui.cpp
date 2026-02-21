@@ -19,13 +19,31 @@ bool Ui::begin() {
   display_.setTextWrap(false);
   display_.display();
   dirty_ = true;
+  sleeping_ = false;
   return true;
 }
 
 void Ui::markDirty() { dirty_ = true; }
 
+void Ui::sleep() {
+  if (!displayOk_ || sleeping_) return;
+  display_.clearDisplay();
+  display_.display();
+  display_.ssd1306_command(SH110X_DISPLAYOFF);
+  sleeping_ = true;
+}
+
+void Ui::wake() {
+  if (!displayOk_ || !sleeping_) return;
+  display_.ssd1306_command(SH110X_DISPLAYON);
+  sleeping_ = false;
+  dirty_ = true;
+}
+
+bool Ui::isSleeping() const { return sleeping_; }
+
 void Ui::refreshMain(uint16_t charDelayMs, uint16_t pauseMs, bool editChar, const char *text) {
-  if (!displayOk_ || !dirty_) return;
+  if (!displayOk_ || !dirty_ || sleeping_) return;
 
   display_.clearDisplay();
   display_.setCursor(0, 0);
@@ -62,20 +80,20 @@ void Ui::refreshMain(uint16_t charDelayMs, uint16_t pauseMs, bool editChar, cons
   dirty_ = false;
 }
 
-void Ui::refreshEditor(const char *buffer, uint8_t pos, uint8_t selection, const char *charSet,
+void Ui::refreshEditor(const char *buffer, uint16_t pos, uint8_t selection, const char *charSet,
                        uint8_t charCount, uint8_t specialBack, uint8_t specialOk) {
-  if (!displayOk_ || !dirty_) return;
+  if (!displayOk_ || !dirty_ || sleeping_) return;
 
   display_.clearDisplay();
   display_.setCursor(0, 0);
   display_.print("Editor stringa");
 
-  const int16_t start = pos > 14 ? pos - 14 : 0;
+  const uint16_t start = pos > 14 ? pos - 14 : 0;
   char view[22];
   uint8_t v = 0;
   if (start > 0) view[v++] = '.';
 
-  for (uint8_t i = start; i < MAX_TEXT_LEN && buffer[i] != '\0' && v < 20; i++) {
+  for (uint16_t i = start; i < MAX_TEXT_LEN && buffer[i] != '\0' && v < 20; i++) {
     view[v++] = buffer[i];
   }
   view[v] = '\0';
@@ -110,7 +128,7 @@ void Ui::refreshEditor(const char *buffer, uint8_t pos, uint8_t selection, const
 }
 
 void Ui::refreshPassword(uint8_t pwdPos, uint8_t currentDigit) {
-  if (!displayOk_ || !dirty_) return;
+  if (!displayOk_ || !dirty_ || sleeping_) return;
 
   display_.clearDisplay();
   display_.setCursor(0, 0);
@@ -133,7 +151,7 @@ void Ui::refreshPassword(uint8_t pwdPos, uint8_t currentDigit) {
 }
 
 void Ui::refreshSecretMenu(const char *const *items, uint8_t count, uint8_t selected) {
-  if (!displayOk_ || !dirty_) return;
+  if (!displayOk_ || !dirty_ || sleeping_) return;
 
   display_.clearDisplay();
   display_.setCursor(0, 0);
@@ -150,7 +168,7 @@ void Ui::refreshSecretMenu(const char *const *items, uint8_t count, uint8_t sele
 }
 
 void Ui::refreshMessage(const char *line1, const char *line2) {
-  if (!displayOk_ || !dirty_) return;
+  if (!displayOk_ || !dirty_ || sleeping_) return;
 
   display_.clearDisplay();
   display_.setCursor(0, 18);
