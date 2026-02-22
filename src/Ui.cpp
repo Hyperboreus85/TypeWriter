@@ -1,6 +1,7 @@
 #include "Ui.h"
 
 #include <Arduino.h>
+#include <cstdio>
 #include <cstring>
 
 bool Ui::begin() {
@@ -42,19 +43,26 @@ void Ui::wake() {
 
 bool Ui::isSleeping() const { return sleeping_; }
 
-void Ui::refreshMain(uint16_t charDelayMs, uint16_t pauseMs, bool editChar, const char *text) {
+void Ui::refreshMain(uint32_t charDelayUs, uint32_t pauseUs, bool editChar, const char *text) {
   if (!displayOk_ || !dirty_ || sleeping_) return;
+
+  const uint32_t charMs = charDelayUs / 1000;
+  const uint32_t charFrac = charDelayUs % 1000;
+  const uint32_t pauseMs = pauseUs / 1000;
+  const uint32_t pauseFrac = pauseUs % 1000;
+
+  char line[22];
 
   display_.clearDisplay();
   display_.setCursor(0, 0);
-  display_.print("CHAR: ");
-  display_.print(charDelayMs);
-  display_.print(" ms");
+  snprintf(line, sizeof(line), "CHAR:%lu.%03lu", static_cast<unsigned long>(charMs),
+           static_cast<unsigned long>(charFrac));
+  display_.print(line);
 
   display_.setCursor(0, 10);
-  display_.print("PAUSA: ");
-  display_.print(pauseMs);
-  display_.print(" ms");
+  snprintf(line, sizeof(line), "PAUSA:%lu.%03lu", static_cast<unsigned long>(pauseMs),
+           static_cast<unsigned long>(pauseFrac));
+  display_.print(line);
 
   display_.setCursor(0, 20);
   display_.print("EDIT: ");

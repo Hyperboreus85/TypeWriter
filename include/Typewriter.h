@@ -4,18 +4,18 @@
 
 class Typewriter {
 public:
-  void begin(const char *text, uint16_t charDelayMs, uint16_t linePauseMs);
+  void begin(const char *text, uint32_t charDelayUs, uint32_t linePauseUs);
   void setText(const char *text);
-  void setTiming(uint16_t charDelayMs, uint16_t linePauseMs);
+  void setTiming(uint32_t charDelayUs, uint32_t linePauseUs);
   void update();
 
 private:
   static constexpr uint16_t MAX_TEXT_LEN = 512;
 
   char text_[MAX_TEXT_LEN + 1] = "";
-  uint16_t charDelayMs_ = 50;
-  uint16_t linePauseMs_ = 2000;
+  uint32_t charDelayUs_ = 1000;
+  uint32_t linePauseUs_ = 20000;
   uint16_t printIndex_ = 0;
   bool waitingLinePause_ = false;
-  unsigned long lastEventMs_ = 0;
+  unsigned long lastEventUs_ = 0;
 };
