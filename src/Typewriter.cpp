@@ -2,12 +2,12 @@
 
 #include <cstring>
 
-void Typewriter::begin(const char *text, uint16_t charDelayMs, uint16_t linePauseMs) {
+void Typewriter::begin(const char *text, uint32_t charDelayUs, uint32_t linePauseUs) {
   setText(text);
-  setTiming(charDelayMs, linePauseMs);
+  setTiming(charDelayUs, linePauseUs);
   printIndex_ = 0;
   waitingLinePause_ = false;
-  lastEventMs_ = millis();
+  lastEventUs_ = micros();
 }
 
 void Typewriter::setText(const char *text) {
@@ -15,26 +15,26 @@ void Typewriter::setText(const char *text) {
   text_[MAX_TEXT_LEN] = '\0';
   printIndex_ = 0;
   waitingLinePause_ = false;
-  lastEventMs_ = millis();
+  lastEventUs_ = micros();
 }
 
-void Typewriter::setTiming(uint16_t charDelayMs, uint16_t linePauseMs) {
-  charDelayMs_ = charDelayMs;
-  linePauseMs_ = linePauseMs;
+void Typewriter::setTiming(uint32_t charDelayUs, uint32_t linePauseUs) {
+  charDelayUs_ = charDelayUs;
+  linePauseUs_ = linePauseUs;
 }
 
 void Typewriter::update() {
-  const unsigned long now = millis();
+  const unsigned long now = micros();
 
   if (text_[0] == '\0') {
     return;
   }
 
   if (!waitingLinePause_) {
-    if (now - lastEventMs_ >= charDelayMs_) {
+    if (static_cast<unsigned long>(now - lastEventUs_) >= charDelayUs_) {
       const char c = text_[printIndex_++];
       Serial.print(c);
-      lastEventMs_ = now;
+      lastEventUs_ = now;
 
       if (text_[printIndex_] == '\0') {
         Serial.println();
@@ -42,8 +42,8 @@ void Typewriter::update() {
         waitingLinePause_ = true;
       }
     }
-  } else if (now - lastEventMs_ >= linePauseMs_) {
+  } else if (static_cast<unsigned long>(now - lastEventUs_) >= linePauseUs_) {
     waitingLinePause_ = false;
-    lastEventMs_ = now;
+    lastEventUs_ = now;
   }
 }

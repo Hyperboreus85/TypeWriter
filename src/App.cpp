@@ -27,19 +27,28 @@ void App::setup() {
 
   strncpy(appliedText_, text_, MAX_TEXT_LEN);
   appliedText_[MAX_TEXT_LEN] = '\0';
-  appliedCharDelayMs_ = charDelayMs_;
-  appliedLinePauseMs_ = linePauseMs_;
-  typewriter_.begin(text_, charDelayMs_, linePauseMs_);
+  appliedCharDelayUs_ = charDelayUs_;
+  appliedLinePauseUs_ = linePauseUs_;
+  typewriter_.begin(text_, charDelayUs_, linePauseUs_);
+
+  lastInteractionMs_ = millis();
 }
 
 void App::loop() {
   const ButtonEvents events = button_.poll();
   const int16_t detents = encoder_.consumeDetents();
+  const uint8_t speedStep = encoder_.consumeSpeedStep();
 
-  if (charDelayMs_ != appliedCharDelayMs_ || linePauseMs_ != appliedLinePauseMs_) {
-    typewriter_.setTiming(charDelayMs_, linePauseMs_);
-    appliedCharDelayMs_ = charDelayMs_;
-    appliedLinePauseMs_ = linePauseMs_;
+  const bool encoderMoved = detents != 0;
+  const bool buttonUsed = events.shortClick || events.doubleClick || events.long2s || events.long5s;
+  const bool userInteraction = encoderMoved || buttonUsed;
+
+  handleDisplayPower(userInteraction, encoderMoved);
+
+  if (charDelayUs_ != appliedCharDelayUs_ || linePauseUs_ != appliedLinePauseUs_) {
+    typewriter_.setTiming(charDelayUs_, linePauseUs_);
+    appliedCharDelayUs_ = charDelayUs_;
+    appliedLinePauseUs_ = linePauseUs_;
   }
 
   if (strncmp(text_, appliedText_, MAX_TEXT_LEN) != 0) {
@@ -51,7 +60,7 @@ void App::loop() {
   typewriter_.update();
 
   handleMessageTimeout();
-  handleEncoder(detents);
+  handleEncoder(detents, speedStep);
   handleButton(events);
   refreshUi();
 }
@@ -66,12 +75,28 @@ void App::disableWireless() {
   esp_bt_controller_deinit();
 }
 
-void App::handleEncoder(int16_t detents) {
+void App::handleDisplayPower(bool userInteraction, bool encoderMoved) {
+  const unsigned long now = millis();
+
+  if (userInteraction) {
+    lastInteractionMs_ = now;
+    if (encoderMoved && ui_.isSleeping()) {
+      ui_.wake();
+      ui_.markDirty();
+    }
+  }
+
+  if (!ui_.isSleeping() && (now - lastInteractionMs_ >= DISPLAY_SLEEP_TIMEOUT_MS)) {
+    ui_.sleep();
+  }
+}
+
+void App::handleEncoder(int16_t detents, uint8_t speedStep) {
   if (detents == 0) return;
 
   switch (screen_) {
     case ScreenState::MAIN:
-      applyMainStep(detents);
+      applyMainStep(detents, speedStep);
       break;
     case ScreenState::STRING_EDITOR:
       applyEditorStep(detents);
@@ -178,7 +203,7 @@ void App::handleMessageTimeout() {
 void App::refreshUi() {
   switch (screen_) {
     case ScreenState::MAIN:
-      ui_.refreshMain(charDelayMs_, linePauseMs_, editCharDelay_, text_);
+      ui_.refreshMain(charDelayUs_, linePauseUs_, editCharDelay_, text_);
       break;
     case ScreenState::STRING_EDITOR:
       ui_.refreshEditor(editorBuffer_, editorPos_, editorSelection_, EDITOR_CHAR_SET,
@@ -233,19 +258,38 @@ void App::showMessage(const char *line1, const char *line2, unsigned long durati
   ui_.markDirty();
 }
 
-void App::applyMainStep(int16_t steps) {
-  const int16_t scaled = editCharDelay_ ? (steps * 5) : (steps * 100);
+void App::applyMainStep(int16_t detents, uint8_t speedStep) {
+  uint16_t stepUs = 1;
+  switch (speedStep) {
+    case 1:
+      stepUs = 1;
+      break;
+    case 2:
+      stepUs = 10;
+      break;
+    case 3:
+      stepUs = 50;
+      break;
+    case 4:
+      stepUs = 100;
+      break;
+    default:
+      stepUs = 500;
+      break;
+  }
+
+  const int32_t deltaUs = static_cast<int32_t>(detents) * static_cast<int32_t>(stepUs);
 
   if (editCharDelay_) {
-    int32_t next = static_cast<int32_t>(charDelayMs_) + scaled;
-    if (next < MIN_CHAR_DELAY_MS) next = MIN_CHAR_DELAY_MS;
-    if (next > MAX_CHAR_DELAY_MS) next = MAX_CHAR_DELAY_MS;
-    charDelayMs_ = static_cast<uint16_t>(next);
+    int32_t next = static_cast<int32_t>(charDelayUs_) + deltaUs;
+    if (next < static_cast<int32_t>(MIN_CHAR_DELAY_US)) next = MIN_CHAR_DELAY_US;
+    if (next > static_cast<int32_t>(MAX_CHAR_DELAY_US)) next = MAX_CHAR_DELAY_US;
+    charDelayUs_ = static_cast<uint32_t>(next);
   } else {
-    int32_t next = static_cast<int32_t>(linePauseMs_) + scaled;
-    if (next < MIN_LINE_PAUSE_MS) next = MIN_LINE_PAUSE_MS;
-    if (next > MAX_LINE_PAUSE_MS) next = MAX_LINE_PAUSE_MS;
-    linePauseMs_ = static_cast<uint16_t>(next);
+    int32_t next = static_cast<int32_t>(linePauseUs_) + deltaUs;
+    if (next < static_cast<int32_t>(MIN_LINE_PAUSE_US)) next = MIN_LINE_PAUSE_US;
+    if (next > static_cast<int32_t>(MAX_LINE_PAUSE_US)) next = MAX_LINE_PAUSE_US;
+    linePauseUs_ = static_cast<uint32_t>(next);
   }
 
   ui_.markDirty();
@@ -295,8 +339,8 @@ void App::executeMenuItem(uint8_t index) {
 }
 
 void App::resetDefaults(bool includeText) {
-  charDelayMs_ = DEFAULT_CHAR_DELAY_MS;
-  linePauseMs_ = DEFAULT_LINE_PAUSE_MS;
+  charDelayUs_ = DEFAULT_CHAR_DELAY_US;
+  linePauseUs_ = DEFAULT_LINE_PAUSE_US;
   if (includeText) {
     strncpy(text_, DEFAULT_TEXT, MAX_TEXT_LEN);
     text_[MAX_TEXT_LEN] = '\0';

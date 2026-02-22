@@ -6,6 +6,7 @@ class Encoder {
 public:
   void begin(uint8_t pinA, uint8_t pinB);
   int16_t consumeDetents();
+  uint8_t consumeSpeedStep();
 
 private:
   static void IRAM_ATTR isrRouter();
@@ -17,5 +18,7 @@ private:
   uint8_t pinB_ = 0;
   volatile int16_t ticks_ = 0;
   volatile uint8_t prevState_ = 0;
+  volatile unsigned long lastTickMs_ = 0;
+  volatile uint8_t speedStep_ = 1;
   int8_t remainder_ = 0;
 };
